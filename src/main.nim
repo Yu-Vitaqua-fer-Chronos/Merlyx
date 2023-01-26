@@ -11,7 +11,7 @@ proc compile*(files: seq[string], printTokens: bool=false): int =
     echo "You need to provide at least one file!"
     return 1
 
-  var tokens: seq[seq[Token]]
+  var lexers: seq[Lexer]
 
   var failedFileValidation: bool = false
 
@@ -28,7 +28,11 @@ proc compile*(files: seq[string], printTokens: bool=false): int =
 
   for file in files:
     ## Lexing stage
-    tokens.add lexMerlyx(readFile(file))
+    lexers.add lexMerlyx(readFile(file))
+
+  if printTokens:
+    for lexer in lexers:
+      echo lexer.tokens
 
   return 0
 

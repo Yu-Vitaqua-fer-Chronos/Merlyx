@@ -53,27 +53,28 @@ type TokenType* = enum
 type Token* = ref object of RootObj
   case typ*: TokenType
     of Indent:
-      indentDepth*: int
-      indentWidth*: int
+      indentDepth: int
+      indentWidth: int
 
     else:
-      text*: string
+      text: string
 
-  startPos*: int
+  line, startColumn: int
 
-proc new*(_: typedesc[Token], typ: TokenType, text: string, startPos: int): Token =
+# Getter procs
+proc indentDepth*(t: Token): int = t.indentDepth
+proc indentWidth*(t: Token): int = t.indentWidth
+proc text*(t: Token): string = t.text
+proc line*(t: Token): int = t.line
+proc startColumn*(t: Token): int = t.startColumn
+
+# Init procs for creating tokens
+proc new*(_: typedesc[Token], typ: TokenType, text: char | string, line, startColumn: int): Token =
   case typ
     of Indent:
       raise newException(UnconstructableTokenError, "`Indent` tokens need to be constructed with the proc made for indent tokens specifically!")
     else:
-      result = Token(typ: typ, text: text, startPos: startPos)
-
-proc new*(_: typedesc[Token], typ: TokenType, text: char, startPos: int): Token =
-  case typ
-    of Indent:
-      raise newException(UnconstructableTokenError, "`Indent` tokens need to be constructed with the proc made for indent tokens specifically!")
-    else:
-      result = Token(typ: typ, text: $text, startPos: startPos)
+      result = Token(typ: typ, text: $text, line: line, startColumn: startColumn)
 
 proc new*(_: typedesc[Token], typ: TokenType, indentDepth, indentWidth, startPos: int): Token =
   case typ
@@ -82,6 +83,7 @@ proc new*(_: typedesc[Token], typ: TokenType, indentDepth, indentWidth, startPos
     else:
       raise newException(UnconstructableTokenError, "This proc can only be used to create `Indent` tokens!")
 
+# toString
 proc `$`*(token: Token): string =
   result = "(typ: " & $token.typ
 
@@ -91,4 +93,4 @@ proc `$`*(token: Token): string =
   else:
     result &= ", text: " & quoted(token.text)
 
-  result &= ", startPos: " & $token.startPos & ")"
+  result &= ", line: " & $token.line & ", startColumn: " & $token.startColumn & ")"
