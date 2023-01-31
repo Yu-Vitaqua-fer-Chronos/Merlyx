@@ -22,7 +22,7 @@ type
 
 proc source*(l: Lexer): seq[string] = l.source
 
-template notAtEndOfLine(l: Lexer): bool = (l.curColumn < (l.source[l.line].len - 1))
+template notAtEndOfLine(l: Lexer): bool = (l.curColumn < (l.source[l.line].len))
 template notAtEnd(l: Lexer): bool = ((l.line < l.source.len) and l.notAtEndOfLine())
 
 proc increment(l: var Lexer) =
@@ -34,7 +34,7 @@ proc decrement(l: var Lexer) =
 proc multilineIncrement(l: var Lexer) =
   inc l.curColumn
 
-  if l.curColumn == l.source[l.line].len - 1:
+  if l.curColumn == l.source[l.line].len:
     l.curColumn = 0
     inc l.line
 
@@ -68,10 +68,9 @@ proc lex(l: var Lexer) =
           ThrowawayToken
 
       if tkn != ThrowawayToken:
-        l.tokens.add Token.new(Float, startChar, startLine, startColumn)
+        l.tokens.add Token.new(tkn, startChar, startLine, startColumn)
 
-    elif startChar == ':':
-      echo "Found a semicolon!"
+      l.increment()
 
     # If it's whitespace, ignore
     elif startChar.isEmptyOrWhitespace:
@@ -166,7 +165,7 @@ proc lex(l: var Lexer) =
       raise newException(LexingError,
         "Unknown character '" & $l.curChar & "' at Line `" & $l.line & "` Column `" & $l.curColumn & "`!")
 
-  l.tokens.add Token.new(EndOfFile, "<EOF>", l.source.len, l.source[l.line].len)
+  l.tokens.add Token.new(EndOfFile, "<EOF>", l.line, l.curColumn)
 
 
 
