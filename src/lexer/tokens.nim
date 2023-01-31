@@ -40,14 +40,15 @@ type TokenType* = enum
   False   ## instead of individual types
 
   # Misc
-  Indent     ## An indent
-  LParen     ## Open paren `(`
-  RParen     ## Close paren `)`
-  Comma      ## Comma for splitting arguments
-  Colon      ## Used for blocks
-  Backtick   ## Typically used for special names or operator definitions
-  Identifier ## Identifiers include names such as `print` or `var1`
-  EndOfFile  ## EOF
+  Indent         ## An indent
+  LParen         ## Open paren `(`
+  RParen         ## Close paren `)`
+  Comma          ## Comma for splitting arguments
+  Colon          ## Used for blocks
+  Backtick       ## Typically used for special names or operator definitions
+  Identifier     ## Identifiers include names such as `print` or `var1`
+  EndOfFile      ## EOF
+  ThrowawayToken ## A throwaway we use for internal purposes
 
 
 type Token* = ref object of RootObj

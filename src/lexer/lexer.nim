@@ -12,20 +12,7 @@ import "."/[
   tokens # The tokens we can create
 ]
 
-# TODO: Switch to a case statement, can be done much cleaner but lazy rn
-const tokenLookupToken: Table[char, TokenType] = {
-  '+': Plus,
-  '*': Times,
-  '-': Subtract,
-  '/': Divide,
-  '%': Modulo,
-  '^': Exponent,
-  ':': Colon,
-  '`': Backtick,
-  '(': LParen,
-  ')': RParen,
-  ',': Comma
-}.toTable
+const Symbols = {'+', '*', '-', '/', '%', '^', ':', '`', '(', ')', ','}
 
 type
   Lexer* = object
@@ -35,15 +22,14 @@ type
 
 proc source*(l: Lexer): seq[string] = l.source
 
-template notAtEnd(l: Lexer): bool = (l.line < l.source.len) and (l.curColumn < (l.source[l.line].len - 1))
 template notAtEndOfLine(l: Lexer): bool = (l.curColumn < (l.source[l.line].len - 1))
+template notAtEnd(l: Lexer): bool = ((l.line < l.source.len) and l.notAtEndOfLine())
 
 proc increment(l: var Lexer) =
   inc l.curColumn
 
-  if l.curColumn == l.source[l.line].len - 1:
-    raise newException(LexingError, "Newline encountered during token lexing when there shouldn't be at position" &
-      " at Line `" & $(l.line + 1) & "`, Column `" & $(l.curColumn + 1) & "`!")
+proc decrement(l: var Lexer) =
+  dec l.curColumn
 
 proc multilineIncrement(l: var Lexer) =
   inc l.curColumn
@@ -51,10 +37,6 @@ proc multilineIncrement(l: var Lexer) =
   if l.curColumn == l.source[l.line].len - 1:
     l.curColumn = 0
     inc l.line
-
-  if l.line == l.source.len - 1:
-    raise newException(LexingError, "Reached EOF while attempting to lex a token" &
-      " at Line `" & $(l.line + 1) & "`, Column `" & $(l.curColumn + 1) & "`!")
 
 template curChar(l: Lexer): char = l.source[l.line][l.curColumn]
 
@@ -68,9 +50,28 @@ proc lex(l: var Lexer) =
 
 
     # Basic token parsing
-    if tokenLookupToken.contains(startChar):
-      l.tokens.add Token.new(tokenLookupToken[startChar], startChar, startLine, startColumn)
-      l.increment()
+    if startChar in Symbols:
+      let tkn = case startChar
+        of '+': Plus
+        of '*': Times
+        of '-': Subtract
+        of '/': Divide
+        of '%': Modulo
+        of '^': Exponent
+        of ':': Colon
+        of '`': Backtick
+        of '(': LParen
+        of ')': RParen
+        of ',': Comma
+
+        else:
+          ThrowawayToken
+
+      if tkn != ThrowawayToken:
+        l.tokens.add Token.new(Float, startChar, startLine, startColumn)
+
+    elif startChar == ':':
+      echo "Found a semicolon!"
 
     # If it's whitespace, ignore
     elif startChar.isEmptyOrWhitespace:
@@ -92,7 +93,7 @@ proc lex(l: var Lexer) =
               "` couldn't be constructed!")
 
         # Break the loop when there's a whitespace
-        elif l.curChar.isEmptyOrWhitespace:
+        elif l.curChar.isBreakageChar:
           break
 
       # Check how many times '.' occurs in the string
@@ -165,7 +166,7 @@ proc lex(l: var Lexer) =
       raise newException(LexingError,
         "Unknown character '" & $l.curChar & "' at Line `" & $l.line & "` Column `" & $l.curColumn & "`!")
 
-  l.tokens.add Token.new(EndOfFile, "<EOF>", l.source.len, l.source[-1].len)
+  l.tokens.add Token.new(EndOfFile, "<EOF>", l.source.len, l.source[l.line].len)
 
 
 
