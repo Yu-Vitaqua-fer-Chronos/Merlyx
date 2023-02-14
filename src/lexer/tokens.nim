@@ -34,16 +34,21 @@ type TokenType* = enum
 
   # Types
   String  ## Strings like `"Hello World!"`
-  Integer ## Internally, floats and integers are different, to the Lua code
-  Float   ## though, they're treated as the same
+  Number ## Floats and integers are handled by the parser
   True    ## Figure out why it uses true and false to represent booleans
   False   ## instead of individual types
+
+  # Language features
+  Class  ## Used to declare new classes
+  Public ## Used for public classes or variables
+  Static
 
   # Misc
   Indent         ## An indent
   LParen         ## Open paren `(`
   RParen         ## Close paren `)`
   Comma          ## Comma for splitting arguments
+  Dot            ## Used for calling methods typically
   Colon          ## Used for blocks
   Backtick       ## Typically used for special names or operator definitions
   Identifier     ## Identifiers include names such as `print` or `var1`

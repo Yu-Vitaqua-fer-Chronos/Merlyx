@@ -19,6 +19,8 @@ type
     source: seq[string]
     line, curColumn: int
     tokens*: seq[Token]
+    startLine, startColumn: int
+    startChar: char
 
 proc source*(l: Lexer): seq[string] = l.source
 
@@ -40,18 +42,81 @@ proc multilineIncrement(l: var Lexer) =
 
 template curChar(l: Lexer): char = l.source[l.line][l.curColumn]
 
+# Parses identifiers
+proc parseIdentifier(l: var Lexer) =
+  # Create the lexeme
+  var lexeme = $l.startChar
+
+  while l.notAtEndOfLine:
+    l.increment()
+
+    # It can now be alphanumeric in identifiers
+    if l.curChar.isBreakageChar:
+      break
+
+    elif not l.curChar.isAlphaNumeric:
+      raise newException(LexingError, "The identifier " & lexeme.quoted & " at Line `" & $(l.line + 1) &
+        "` Column `" & $(l.curColumn + 1) & "`!")
+
+    # Add the value to the lexeme
+    lexeme &= l.curChar
+
+  let typ = case lexeme
+    of "true":
+      True
+    of "false":
+      False
+    of "not":
+      Not
+    of "and":
+      And
+    of "or":
+      Or
+    of "class":
+      Class
+    else:
+      Identifier
+
+  l.tokens.add Token.new(typ, lexeme, l.startLine, l.startColumn)
+
+# Parses numbers
+proc parseNum(l: var Lexer) =
+  # Create lexeme
+  var lexeme = $l.startChar
+
+  while l.notAtEnd:
+    l.increment()
+
+    if l.curChar.isBreakageChar():
+      break
+
+    # If it isn't a valid integer or float, disallow it. This will also allow us to do things such as handling
+    # for scientific notations or to force a number to be `f` without using the decimal point.
+    if not l.curChar.isDigit:
+      raise newException(LexingError,
+        "The number " & lexeme.quoted & " at Line `" & $(l.line + 1) & "` Column `" & $(l.curColumn + 1) &
+          "` couldn't be constructed!")
+
+    # Break the loop when there's a whitespace
+    elif l.curChar.isBreakageChar:
+      break
+
+  l.tokens.add Token.new(Number, lexeme, l.startLine, l.startColumn)
+
+  # Add the value to the lexeme
+  lexeme &= l.curChar
+
 # Generic lex function that takes a string
 proc lex(l: var Lexer) =
   while l.notAtEnd:
-    let
-      startLine = l.line        # The token's starting line
-      startColumn = l.curColumn # The token's starting column
-      startChar = l.curChar     # The starting character, mostly here to reduce redundancy during accessing
+    l.startLine = l.line        # The token's starting line
+    l.startColumn = l.curColumn # The token's starting column
+    l.startChar = l.curChar     # The starting character, mostly here to reduce redundancy during accessing
 
 
     # Basic token parsing
-    if startChar in Symbols:
-      let tkn = case startChar
+    if l.startChar in Symbols:
+      let tkn = case l.startChar
         of '+': Plus
         of '*': Times
         of '-': Subtract
@@ -63,92 +128,31 @@ proc lex(l: var Lexer) =
         of '(': LParen
         of ')': RParen
         of ',': Comma
+        of '.': Dot
 
         else:
           ThrowawayToken
 
       if tkn != ThrowawayToken:
-        l.tokens.add Token.new(tkn, startChar, startLine, startColumn)
+        l.tokens.add Token.new(tkn, l.startChar, l.startLine, l.startColumn)
 
       l.increment()
 
     # If it's whitespace, ignore
-    elif startChar.isEmptyOrWhitespace:
+    elif l.startChar.isEmptyOrWhitespace:
       l.increment()
 
     # Collect the digits together into one number
-    elif startChar.isDigit:
-      # Create the lexmeme
-      var lexeme = $startChar
-
-      while l.notAtEnd:
-        l.increment()
-
-        # If it isn't a valid integer or float, disallow it. This will also allow us to do things such as handling
-        # for scientific notations or to force a number to be `f` without using the decimal point.
-        if not l.curChar.isDigit or l.curChar != '.':
-          raise newException(LexingError,
-            "The number " & lexeme.quoted & " at Line `" & $(l.line + 1) & "` Column `" & $(l.curColumn + 1) &
-              "` couldn't be constructed!")
-
-        # Break the loop when there's a whitespace
-        elif l.curChar.isBreakageChar:
-          break
-
-      # Check how many times '.' occurs in the string
-      let dotCount = lexeme.count('.')
-      if dotCount == 0:
-        # Add a token with the type integer (internal use only)
-        l.tokens.add Token.new(Integer, lexeme, startLine, startColumn)
-      elif dotCount == 1:
-        # Add a token with the type float (internal use only)
-        l.tokens.add Token.new(Float, lexeme, startLine, startColumn)
-      else:
-        # If the lexeme contains more than one '.', it's invalid!
-        raise newException(LexingError, "The number '" & lexeme & "' at Line `" & $(l.line + 1) & "` Column `" &
-          $(l.curColumn + 1) & "` is invalid!")
-
-      # Add the value to the lexeme
-      lexeme &= l.curChar
+    elif l.startChar.isDigit:
+      l.parseNum()
 
     # All identifiers begin with alphabetic characters
-    elif startChar.isAlphaAscii:
-      # Create the lexeme
-      var lexeme = $startChar
+    elif l.startChar.isAlphaAscii:
+      l.parseIdentifier()
 
-      while l.notAtEndOfLine:
-        l.increment()
-
-        # It can now be alphanumeric in identifiers
-        if l.curChar.isBreakageChar:
-          break
-
-        elif not l.curChar.isAlphaNumeric:
-          raise newException(LexingError, "The identifier " & lexeme.quoted & " at Line `" & $(l.line + 1) &
-            "` Column `" & $(l.curColumn + 1) & "`!")
-
-        # Add the value to the lexeme
-        lexeme &= l.curChar
-
-      let typ = case lexeme
-        of "true":
-          True
-        of "false":
-          False
-        of "not":
-          Not
-        of "and":
-          And
-        of "or":
-          Or
-        else:
-          Identifier
-
-      l.tokens.add Token.new(typ, lexeme, startLine, startColumn)
-
-    elif startChar == '"':
+    elif l.startChar == '"':
       # The beginning of the lexeme
-      var lexeme = $startChar
+      var lexeme = $l.startChar
 
       while l.notAtEndOfLine:
         l.increment()
@@ -159,7 +163,7 @@ proc lex(l: var Lexer) =
         lexeme &= l.curChar
 
       l.increment()
-      l.tokens.add Token.new(String, lexeme.quoted, startLine, startColumn)
+      l.tokens.add Token.new(String, lexeme.quoted, l.startLine, l.startColumn)
 
     else:
       raise newException(LexingError,
