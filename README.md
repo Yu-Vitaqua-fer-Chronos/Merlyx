@@ -7,5 +7,5 @@ to our languages of choice!
 These will be crossed off as they are completed.
 - Fix the lexer
 - Create the parser
-- Create the JVM backend codegen (via Jasmin/Jasm)
+- Create the JVM backend codegen (via Jasmin/Jasm?)
 - Rewrite the compiler in Merlyx once the first iteration reaches a 'stable'/usable state
